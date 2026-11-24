@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone tapper motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: workshop test bench, clinical and precise
+   IDEA: a machine on an inspection table with a live gauge beside it
+   PICTURE: the real 3D model, orbitable, running its tap cycle
+   COLOUR and TYPE: white bench, charcoal ink, signal red for contact; Inter Tight + Inter
+   LAYOUT: model left (large), gauge + controls right; stacks on phones */
+:root{color-scheme:light dark;--bg:light-dark(#f4f4f2,#121417);--card:light-dark(#ffffff,#1b1e23);--ink:light-dark(#1b1d22,#e9eaec);--mute:light-dark(#62666e,#9aa0a8);--line:light-dark(#dcdcd8,#2c3037);--red:#e0402f;--blue:#2b7de9}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+header{padding:20px max(4vw,16px) 8px}
+h1{font:700 clamp(26px,3.4vw,40px)/1.05 "Inter Tight",sans-serif;margin:0 0 6px;text-wrap:balance}
+header p{margin:0;color:var(--mute);max-width:70ch}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:12px max(4vw,16px) 28px}
+.fig{position:relative;min-height:560px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.fig canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#load{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute)}
+.views{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}
+aside{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.big{font:700 44px/1 "Inter Tight",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.big small{font-size:18px;color:var(--mute);font-weight:500}
+#state{font-weight:500;margin-top:6px}
+#state.hit{color:var(--red)}
+.row{display:flex;justify-content:space-between;gap:8px;color:var(--mute);font-size:14px;margin-top:4px}
+.row b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+button,select{font:500 15px Inter,sans-serif;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.pri{background:var(--ink);color:var(--card);border-color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.views button{min-height:36px;font-size:13px;background:color-mix(in srgb,var(--card) 88%,transparent)}
+input[type=range]{width:100%;height:44px;accent-color:var(--red)}
+label.t{display:flex;align-items:center;gap:10px;min-height:36px;font-size:15px;cursor:pointer}
+label.t input{width:20px;height:20px;accent-color:var(--red)}
+h2{font:700 15px "Inter Tight",sans-serif;margin:0 0 8px}
+#plot{width:100%;height:120px;display:block}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:14px;color:var(--mute)}
+.legend i{width:14px;height:14px;border-radius:3px;display:inline-block;margin-top:3px}
+@media(max-width:900px){main{grid-template-columns:minmax(0,1fr)}.fig{min-height:440px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Phone tapper: one motor turn, one tap on the screen centre</h1>
+  <p>This is the real CAD model. Drag to orbit, scroll to zoom, right-drag to pan. <b>Tap once</b> runs the cycle your web app would trigger: start at home, lower, touch, lift, stop.</p>
+</header>
+<main>
+  <div class="fig" id="fig">
+    <canvas id="c" aria-label="3D model of the phone tapper"></canvas>
+    <div id="load">Loading model…</div>
+    <div class="views">
+      <button data-v="full">Whole machine</button>
+      <button data-v="mech">Motor and disk</button>
+      <button data-v="tip">Stylus tip</button>
+      <button data-v="side">Side view</button>
+    </div>
+  </div>
+  <aside>
+    <div class="card">
+      <div class="big" id="h">18.0 <small>mm above screen</small></div>
+      <div id="state">Home: stylus up</div>
+      <div class="row">Disk angle <b id="ang">90°</b></div>
+      <div class="row">Spring compression <b id="sp">0.0 mm</b></div>
+      <div class="row">Taps counted <b id="cnt">0</b></div>
+    </div>
+    <div class="card">
+      <div class="btns">
+        <button class="pri" id="tap">Tap once</button>
+        <button id="play">Run continuously</button>
+        <button id="home">Home</button>
+      </div>
+      <input type="range" id="sl" min="0" max="360" step="1" value="90" aria-label="Disk angle">
+      <div class="row">Speed
+        <select id="spd" aria-label="Motor speed"><option value="20">20 rpm</option><option value="60" selected>60 rpm</option><option value="120">120 rpm</option></select>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Stylus height over one turn</h2>
+      <svg id="plot" role="img" aria-label="Stylus height versus disk angle"></svg>
+    </div>
+    <div class="card">
+      <label class="t"><input type="checkbox" id="xr"> See through the brackets</label>
+      <label class="t"><input type="checkbox" id="ph" checked> Show phone</label>
+      <div class="legend" style="margin-top:8px">
+        <i style="background:#f0952a"></i><span>Motor box (JGA25-370 inside)</span>
+        <i style="background:#2b7de9"></i><span>Disk with crank pin + 623 bearing</span>
+        <i style="background:#e0402f"></i><span>Yoke and stylus foot</span>
+        <i style="background:#f2d23a"></i><span>Sprung plunger (2 mm press)</span>
+        <i style="background:#4cbf73"></i><span>Phone holder</span>
+      </div>
+    </div>
+  </aside>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="meshes.js"></script>
+<script>
+{
+// numbers from phone_tapper.scad (REPORT echo)
+const E=10, YA=75, ZD=327, TIP0=19.8, ZS=11.8;
+const rad=d=>d*Math.PI/180;
+const tipZ=t=>TIP0+E*Math.sin(rad(t));
+const comp=t=>Math.max(0,ZS-tipZ(t));
+const height=t=>Math.max(0,tipZ(t)-ZS);
+
+const fig=document.getElementById('fig'), cv=document.getElementById('c');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+R.setPixelRatio(Math.min(2,devicePixelRatio));
+const S=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(35,1,1,5000); cam.up.set(0,0,1);
+const ctl=new THREE.OrbitControls(cam,cv); ctl.enableDamping=true;
+S.add(new THREE.HemisphereLight(0xffffff,0x8a8f99,0.75));
+const sun=new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(-300,600,900); S.add(sun);
+const fill=new THREE.DirectionalLight(0xffffff,0.3); fill.position.set(400,-200,200); S.add(fill);
+// the wall
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(700,700),new THREE.MeshStandardMaterial({color:0xe9e7e2,roughness:1}));
+wall.rotation.x=Math.PI/2; wall.position.set(20,-0.6,180); S.add(wall);
+
+const COL={upper_bracket:0xd9dade,lower_bracket:0xd9dade,motor_box:0xf0952a,motor:0x9aa0aa,shaft:0xc8cbd0,disk:0x2b7de9,
+  bearing:0xd8dbe0,screw:0x2a2a2a,yoke:0xe0402f,lm6uu:0xc8cbd0,rod:0xb8bcc4,foot:0xe0402f,plunger:0xf2d23a,tip:0x151515,cradle:0x4cbf73,phone:0x15171c};
+const G={}, M={};
+const disk=new THREE.Group(); disk.position.set(0,YA,ZD); S.add(disk);
+const pin=new THREE.Group(); S.add(pin);
+const lift=new THREE.Group(); S.add(lift);
+const plg=new THREE.Group(); S.add(plg);
+const parent={disk:disk,shaft:disk,bearing:pin,screw:pin,yoke:lift,rod:lift,foot:lift,plunger:plg,tip:plg};
+const loader=new THREE.STLLoader(); let left=Object.keys(COL).length;
+function loadAll(){ for(const n of Object.keys(COL)){
+  const b=atob(window.MESHES[n]), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  (g=>{
+    g.computeVertexNormals();
+    const mat=new THREE.MeshStandardMaterial({color:COL[n],roughness:n==='rod'||n==='shaft'?0.35:0.6,metalness:['rod','shaft','bearing','lm6uu','motor'].includes(n)?0.5:0.05});
+    const m=new THREE.Mesh(g,mat); M[n]=m;
+    if(n==='disk'||n==='shaft') m.position.set(0,-YA,-ZD);
+    (parent[n]||S).add(m);
+    if(--left===0){document.getElementById('load').remove(); addScreen(); view('full'); set(90);}
+  })(loader.parse(u.buffer));
+} }
+function addScreen(){ // screen face + target dot on top of the phone body
+  const s=new THREE.Mesh(new THREE.PlaneGeometry(139.6,63.6),new THREE.MeshStandardMaterial({color:0x2a4f86,roughness:0.25}));
+  s.position.set(0,YA,ZS+0.05); S.add(s); M.screen=s;
+  const d=new THREE.Mesh(new THREE.CircleGeometry(2.2,24),new THREE.MeshBasicMaterial({color:0xe0402f}));
+  d.position.set(0,YA,ZS+0.1); S.add(d); M.dot=d;
+}
+const V={full:[[-560,820,560],[15,75,175]],mech:[[-190,260,420],[15,75,322]],tip:[[-80,230,60],[0,75,25]],side:[[-700,75,180],[0,75,175]]};
+function view(k){cam.position.set(...V[k][0]); ctl.target.set(...V[k][1]); ctl.update();}
+document.querySelectorAll('.views button').forEach(b=>b.onclick=()=>view(b.dataset.v));
+
+// ---- state + UI
+let ang=90, playing=false, tapLeft=0, taps=0, rpm=60, last=performance.now(), wasDown=false;
+const $=id=>document.getElementById(id);
+function set(t){
+  ang=((t%360)+360)%360;
+  disk.rotation.x=rad(ang);
+  pin.position.set(0,E*Math.cos(rad(ang))-E,E*Math.sin(rad(ang)));
+  lift.position.z=E*Math.sin(rad(ang));
+  plg.position.z=E*Math.sin(rad(ang))+comp(ang);
+  const h=height(ang), c=comp(ang), down=h<0.005;
+  if(down&&!wasDown){taps++; $('cnt').textContent=taps;} wasDown=down;
+  $('h').innerHTML=h.toFixed(1)+' <small>mm above screen</small>';
+  $('ang').textContent=Math.round(ang)+'°';
+  $('sp').textContent=c.toFixed(1)+' mm';
+  const st=$('state');
+  st.textContent=Math.abs(ang-90)<0.5?'Home: stylus up':down?'Touching the screen centre':(ang>90&&ang<270?'Lowering':'Lifting');
+  st.className=down?'hit':'';
+  $('sl').value=Math.round(ang); mark();
+}
+$('sl').oninput=e=>{playing=false;tapLeft=0;upd();set(+e.target.value);};
+$('spd').onchange=e=>rpm=+e.target.value;
+$('play').onclick=()=>{playing=!playing;tapLeft=0;upd();};
+$('tap').onclick=()=>{playing=false;if(Math.abs(ang-90)>0.5)set(90);tapLeft=360;upd();};
+$('home').onclick=()=>{playing=false;tapLeft=0;upd();set(90);};
+function upd(){$('play').textContent=playing?'Pause':'Run continuously';}
+$('xr').onchange=e=>['upper_bracket','lower_bracket','motor_box','cradle'].forEach(n=>{const m=M[n];if(!m)return;m.material.transparent=e.target.checked;m.material.opacity=e.target.checked?0.28:1;m.material.depthWrite=!e.target.checked;});
+$('ph').onchange=e=>['phone','screen','dot'].forEach(n=>M[n]&&(M[n].visible=e.target.checked));
+
+// ---- height plot
+const P=$('plot'); let plotW=300;
+function drawPlot(){
+  const W=P.clientWidth||300,H=P.clientHeight||120,pl=30,pb=20; plotW=W;
+  const x=t=>pl+(W-pl-6)*t/360, y=h=>6+(H-pb-6)*(1-h/20);
+  let d='';for(let t=0;t<=360;t+=3)d+=(t?'L':'M')+x(t).toFixed(1)+','+y(height(t)).toFixed(1);
+  const ticks=W<300?[90,270]:[0,90,180,270,360];
+  P.innerHTML=`<rect x="${x(240)}" y="6" width="${x(300)-x(240)}" height="${H-pb-6}" fill="#e0402f" opacity=".13"/>
+  <line x1="${pl}" x2="${W-6}" y1="${y(0)}" y2="${y(0)}" stroke="currentColor" opacity=".35"/>
+  <path d="${d}" fill="none" stroke="#2b7de9" stroke-width="2.2"/>
+  ${ticks.map(t=>`<text x="${x(t)}" y="${H-4}" font-size="11" text-anchor="middle" fill="currentColor" opacity=".7">${t}°</text>`).join('')}
+  <text x="2" y="${y(18)+4}" font-size="11" fill="currentColor" opacity=".7">18</text><text x="8" y="${y(0)+4}" font-size="11" fill="currentColor" opacity=".7">0</text>
+  <text x="${x(270)}" y="${y(0)-6}" font-size="11" text-anchor="middle" fill="#e0402f">touch</text>
+  <circle id="mk" r="5" fill="#e0402f"/>`;
+  mark();
+}
+function mark(){const m=document.getElementById('mk');if(!m)return;const W=P.clientWidth||300,H=P.clientHeight||120,pl=30,pb=20;
+  m.setAttribute('cx',pl+(W-pl-6)*ang/360);m.setAttribute('cy',6+(H-pb-6)*(1-height(ang)/20));}
+const roP=new ResizeObserver(drawPlot); roP.observe(P);
+
+function size(){const w=fig.clientWidth,h=fig.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+const roF=new ResizeObserver(size); roF.observe(fig);
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  const step=rpm*6*dt;
+  if(playing) set(ang+step);
+  else if(tapLeft>0){const s=Math.min(step,tapLeft); tapLeft-=s; set(ang+s); if(tapLeft<=0){set(90);}}
+  ctl.update(); R.render(S,cam); requestAnimationFrame(loop);
+}
+size(); loadAll();
+requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
