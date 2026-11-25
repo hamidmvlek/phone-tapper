@@ -51,7 +51,7 @@ h2{font:700 15px "Inter Tight",sans-serif;margin:0 0 8px}
 <body>
 <header>
   <h1>Phone tapper: one motor turn, one tap on the screen centre</h1>
-  <p>This is the real CAD model. Drag to orbit, scroll to zoom, right-drag to pan. <b>Tap once</b> runs the cycle your web app would trigger: start at home, lower, touch, lift, stop.</p>
+  <p>This is the real CAD model. Drag to orbit, scroll to zoom, right-drag to pan. <b>Tap once</b> runs the cycle your web app would trigger: 200 stepper steps from home, lower, touch, lift, stop.</p>
 </header>
 <main>
   <div class="fig" id="fig">
@@ -91,11 +91,12 @@ h2{font:700 15px "Inter Tight",sans-serif;margin:0 0 8px}
       <label class="t"><input type="checkbox" id="xr"> See through the brackets</label>
       <label class="t"><input type="checkbox" id="ph" checked> Show phone</label>
       <div class="legend" style="margin-top:8px">
-        <i style="background:#f0952a"></i><span>Motor box (JGA25-370 inside)</span>
+        <i style="background:#f0952a"></i><span>Motor box (NEMA17 17HS4401S stepper)</span>
         <i style="background:#2b7de9"></i><span>Disk with crank pin + 623 bearing</span>
         <i style="background:#e0402f"></i><span>Yoke and stylus foot</span>
         <i style="background:#f2d23a"></i><span>Sprung plunger (2 mm press)</span>
-        <i style="background:#4cbf73"></i><span>Phone holder</span>
+        <i style="background:#4cbf73"></i><span>iPhone 6 holder</span>
+        <i style="background:#1f7a8c"></i><span>Arduino Nano + terminal adapter (under the shelf)</span>
       </div>
     </div>
   </aside>
@@ -107,7 +108,7 @@ h2{font:700 15px "Inter Tight",sans-serif;margin:0 0 8px}
 <script>
 {
 // numbers from phone_tapper.scad (REPORT echo)
-const E=10, YA=75, ZD=327, TIP0=19.8, ZS=11.8;
+const E=10, YA=75, ZD=326.1, TIP0=18.9, ZS=10.9;
 const rad=d=>d*Math.PI/180;
 const tipZ=t=>TIP0+E*Math.sin(rad(t));
 const comp=t=>Math.max(0,ZS-tipZ(t));
@@ -126,8 +127,8 @@ const fill=new THREE.DirectionalLight(0xffffff,0.3); fill.position.set(400,-200,
 const wall=new THREE.Mesh(new THREE.PlaneGeometry(700,700),new THREE.MeshStandardMaterial({color:0xe9e7e2,roughness:1}));
 wall.rotation.x=Math.PI/2; wall.position.set(20,-0.6,180); S.add(wall);
 
-const COL={upper_bracket:0xd9dade,lower_bracket:0xd9dade,motor_box:0xf0952a,motor:0x9aa0aa,shaft:0xc8cbd0,disk:0x2b7de9,
-  bearing:0xd8dbe0,screw:0x2a2a2a,yoke:0xe0402f,lm6uu:0xc8cbd0,rod:0xb8bcc4,foot:0xe0402f,plunger:0xf2d23a,tip:0x151515,cradle:0x4cbf73,phone:0x15171c};
+const COL={upper_bracket:0xd9dade,lower_bracket:0xd9dade,motor_box:0xf0952a,motor:0x3c3e44,shaft:0xc8cbd0,disk:0x2b7de9,
+  bearing:0xd8dbe0,screw:0x2a2a2a,yoke:0xe0402f,lm6uu:0xc8cbd0,rod:0xb8bcc4,foot:0xe0402f,plunger:0xf2d23a,tip:0x151515,cradle:0x4cbf73,phone:0xd8d9dc,pcb:0x1f7a8c};
 const G={}, M={};
 const disk=new THREE.Group(); disk.position.set(0,YA,ZD); S.add(disk);
 const pin=new THREE.Group(); S.add(pin);
@@ -147,7 +148,7 @@ function loadAll(){ for(const n of Object.keys(COL)){
   })(loader.parse(u.buffer));
 } }
 function addScreen(){ // screen face + target dot on top of the phone body
-  const s=new THREE.Mesh(new THREE.PlaneGeometry(139.6,63.6),new THREE.MeshStandardMaterial({color:0x2a4f86,roughness:0.25}));
+  const s=new THREE.Mesh(new THREE.PlaneGeometry(104,58.5),new THREE.MeshStandardMaterial({color:0x2a4f86,roughness:0.25}));
   s.position.set(0,YA,ZS+0.05); S.add(s); M.screen=s;
   const d=new THREE.Mesh(new THREE.CircleGeometry(2.2,24),new THREE.MeshBasicMaterial({color:0xe0402f}));
   d.position.set(0,YA,ZS+0.1); S.add(d); M.dot=d;
